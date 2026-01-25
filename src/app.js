@@ -9,7 +9,7 @@ connectDB();
 
 app.use(cors({
   origin: "https://ai-resume-frontend-snowy.vercel.app",
-  methods: ["GET", "POST"],
+  methods: ["POST"],
   allowedHeaders: ["Content-Type"],
 }));
 
