@@ -1,15 +1,5 @@
-
-
-// import { createRequire } from "module";
-// const require = createRequire(import.meta.url);
-
-// const pdfParse = require("pdf-parse");
-
-// console.log("pdfParse type:", typeof pdfParse);
-
 import express from "express";
 import multer from "multer";
-
 import { createRequire } from "module";
 
 import ResumeAnalysis from "../models/ResumeAnalysis.js";
@@ -17,10 +7,23 @@ import { cerebrasClient } from "../config/cerebras.js";
 
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
-console.log("pdfParse type:", typeof pdfParse);
 
 const router = express.Router();
 const upload = multer();
+
+/**
+ * Safely parse JSON returned by LLM
+ */
+function safeParseJSON(text) {
+  try {
+    const cleaned = text
+      .replace(/```json|```/g, "")
+      .trim();
+    return JSON.parse(cleaned);
+  } catch {
+    throw new Error("AI returned invalid JSON");
+  }
+}
 
 router.post("/analyze", upload.single("resume"), async (req, res) => {
   try {
@@ -30,19 +33,28 @@ router.post("/analyze", upload.single("resume"), async (req, res) => {
       return res.status(400).json({ message: "Resume PDF missing" });
     }
 
-    const data = await pdfParse(req.file.buffer);
-    console.log("CEREBRAS KEY length:", process.env.CEREBRAS_API_KEY?.length);
-    const resumeText = data.text;
+    const pdfData = await pdfParse(req.file.buffer);
+    const resumeText = pdfData.text;
 
     const prompt = `
 You are an ATS resume analyzer.
 
+⚠️ IMPORTANT RULES:
+- Respond with ONLY valid JSON
+- No markdown
+- No explanations
+- No trailing commas
+- Arrays must be comma-separated
+
+Return JSON exactly in this format:
+{
+  "skills_found": string[],
+  "missing_skills": string[],
+  "improvement_suggestions": string[],
+  "ats_score": number
+}
+
 Analyze the resume for the role of ${targetRole}.
-Return ONLY valid JSON with:
-- skills_found (array)
-- missing_skills (array)
-- improvement_suggestions (array)
-- ats_score (number 0-100)
 
 Resume:
 ${resumeText}
@@ -57,29 +69,37 @@ ${resumeText}
 
     const rawText = response.data.choices[0].message.content;
 
-    const parsed = JSON.parse(
-      rawText.replace(/```json|```/g, "")
-    );
+    let parsed;
+    try {
+      parsed = safeParseJSON(rawText);
+    } catch {
+      return res.status(500).json({
+        error: "Analysis failed",
+        message: "AI response format error. Please try again.",
+      });
+    }
 
-    const saved = await ResumeAnalysis.create({
-  userId,
-  resumeText,
-  targetRole,
-  geminiResult: parsed, // stored in DB
-});
+    // Save to DB (non-blocking for frontend UX)
+    await ResumeAnalysis.create({
+      userId,
+      resumeText,
+      targetRole,
+      geminiResult: parsed,
+    });
 
-res.status(200).json({
-  ats_score: parsed.ats_score,
-  skills_found: parsed.skills_found,
-  missing_skills: parsed.missing_skills,
-  improvement_suggestions: parsed.improvement_suggestions,
-});
+    // ✅ Return clean AI result to frontend
+    res.status(200).json({
+      ats_score: parsed.ats_score,
+      skills_found: parsed.skills_found,
+      missing_skills: parsed.missing_skills,
+      improvement_suggestions: parsed.improvement_suggestions,
+    });
 
   } catch (err) {
-    console.error("ANALYSIS ERROR 👉", err.response?.data || err.message);
+    console.error("ANALYSIS ERROR 👉", err.message);
     res.status(500).json({
       error: "Analysis failed",
-      message: err.response?.data || err.message,
+      message: "Internal server error",
     });
   }
 });
