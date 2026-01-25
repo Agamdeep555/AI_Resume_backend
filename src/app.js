@@ -8,7 +8,7 @@ const app = express();
 connectDB();
 
 app.use(cors({
-  origin: "https://ai-resume-frontend-snowy.vercel.app",
+  origin: ["https://ai-resume-frontend-snowy.vercel.app", "http://localhost:5173"],
   methods: ["POST"],
   allowedHeaders: ["Content-Type"],
 }));
