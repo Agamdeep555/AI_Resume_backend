@@ -282,7 +282,11 @@ MIT License
 
 ---
 
-## 👨‍💻 Author
+## 📸 API Response Example
+
+![Resume Analysis JSON Response](https://github.com/user-attachments/assets/bbcc7b99-b6ec-4ab9-a5ca-bb523e6e888a)
+
+*Sample JSON response showing ATS score, extracted skills, missing skills, and improvement suggestions exported by frontend.*
 
 **Agamdeep Singh**
 - GitHub: [@Agamdeep555](https://github.com/Agamdeep555)
