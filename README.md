@@ -6,6 +6,14 @@ The backend API for Resume Analyzer that processes resumes, extracts skills, and
 
 ---
 
+## 📸 API Response Example
+
+![Resume Analysis JSON Response](https://github.com/user-attachments/assets/bbcc7b99-b6ec-4ab9-a5ca-bb523e6e888a)
+
+*Sample JSON response showing ATS score, extracted skills, missing skills, and improvement suggestions.*
+
+---
+
 ## 🚀 Live API
 
 - **Production**: https://ai-resume-backend-new.vercel.app
