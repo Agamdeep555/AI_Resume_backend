@@ -7,9 +7,7 @@ const app = express();
 connectDB();
 
 app.use(cors({
-  origin: [
-    "https://ai-resume-frontend-snowy.vercel.app"
-  ],
+  origin: "https://ai-resume-frontend-snowy.vercel.app",
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"],
 }));
@@ -23,8 +21,5 @@ app.get("/", (req, res) => {
     service: "AI Resume Analyzer Backend",
   });
 });
-
-import resumeRoutes from "./routes/resume.routes.js";
-app.use("/api/resume", resumeRoutes);
 
 export default app;
