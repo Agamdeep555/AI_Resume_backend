@@ -69,11 +69,10 @@ ${resumeText}
 });
 
 res.status(200).json({
-  success: true,
-  analysis: parsed,          // ✅ FINAL GENERATED RESULT
-  targetRole,
-  analysisId: saved._id,     // optional but useful
-  createdAt: saved.createdAt
+  ats_score: parsed.ats_score,
+  skills_found: parsed.skills_found,
+  missing_skills: parsed.missing_skills,
+  improvement_suggestions: parsed.improvement_suggestions,
 });
 
   } catch (err) {
