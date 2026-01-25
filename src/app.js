@@ -7,11 +7,26 @@ const app = express();
 
 connectDB();
 
+const allowedOrigins = [
+  "https://ai-resume-frontend-snowy.vercel.app",
+  "http://localhost:5173",
+];
+
 app.use(cors({
-  origin: ["https://ai-resume-frontend-snowy.vercel.app", "http://localhost:5173"],
-  methods: ["POST"],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (Postman, curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"],
 }));
+
 
 app.use(express.json());
 
