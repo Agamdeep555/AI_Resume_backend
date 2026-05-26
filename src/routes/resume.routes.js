@@ -9,15 +9,26 @@ const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({storage: multer.memoryStorage() });
 
+/**
+ * Safely parse JSON returned by LLM
+ */
 function safeParseJSON(text) {
   try {
-    const cleaned = text.replace(/```json|```/g, "").trim();
+    const cleaned = text
+      .replace(/```json|```/g, "")
+      .trim();
     return JSON.parse(cleaned);
   } catch {
     throw new Error("AI returned invalid JSON");
   }
+}
+
+function calculateATSScore(skillsFound, missingSkills) {
+  const total = skillsFound.length + missingSkills.length;
+  if (total === 0) return 0;
+  return Math.round((skillsFound.length / total) * 100);
 }
 
 router.post("/analyze", upload.single("resume"), async (req, res) => {
@@ -28,52 +39,39 @@ router.post("/analyze", upload.single("resume"), async (req, res) => {
       return res.status(400).json({ message: "Resume PDF missing" });
     }
 
-    let resumeText;
-    try {
-      const pdfData = await pdfParse(req.file.buffer);
-      resumeText = pdfData.text;
-    } catch (pdfErr) {
-      return res.status(400).json({
-        error: "PDF parse failed",
-        message: pdfErr.message,
-      });
-    }
+    const pdfData = await pdfParse(req.file.buffer);
+    const resumeText = pdfData.text;
 
-    const prompt = `You are a strict ATS resume scoring system. Output ONLY a single valid JSON object. No text before or after. No markdown. No code blocks. No explanations.
+    const prompt = `
+You are an ATS resume analyzer.
 
-REQUIRED OUTPUT FORMAT (copy exactly):
-{"skills_found":[],"missing_skills":[],"improvement_suggestions":[],"ats_score":0}
-
-Rules:
-- ats_score: integer 0-100
-- skills_found: technologies/skills present in resume
-- missing_skills: important skills for "${targetRole}" NOT in resume
-- improvement_suggestions: 3-5 specific actionable fixes
-- All arrays contain strings only
+⚠️ IMPORTANT RULES:
+- Respond with ONLY valid JSON
+- No markdown
+- No explanations
 - No trailing commas
-- No extra fields
+- Arrays must be comma-separated
 
-Target Role: ${targetRole}
+Return JSON exactly in this format:
+{
+  "skills_found": string[],
+  "missing_skills": string[],
+  "improvement_suggestions": string[],
+  "ats_score": number
+}
 
-Resume Text:
+Analyze the resume for the role of ${targetRole}.
+
+Resume:
 ${resumeText}
+`;
 
-JSON:`;
-
-    let response;
-    try {
-      response = await cerebrasClient.post("/chat/completions", {
-        model: "llama3.1-8b",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.2,
-        max_tokens: 1024,
-      });
-    } catch (apiErr) {
-      return res.status(500).json({
-        error: "Cerebras API failed",
-        message: apiErr.message,
-      });
-    }
+    const response = await cerebrasClient.post("/chat/completions", {
+      model: "llama-3.1-8b",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      max_tokens: 1024,
+    });
 
     const rawText = response.data.choices[0].message.content;
 
@@ -87,27 +85,24 @@ JSON:`;
       });
     }
 
-    // Save to DB (non-fatal)
-    try {
-      await ResumeAnalysis.create({
-        userId,
-        resumeText,
-        targetRole,
-        geminiResult: parsed,
-      });
-    } catch (dbErr) {
-      console.error("DB save failed (non-fatal):", dbErr.message);
-    }
+    // Save to DB (non-blocking for frontend UX)
+    await ResumeAnalysis.create({
+      userId,
+      resumeText,
+      targetRole,
+      geminiResult: parsed,
+    });
 
+    // ✅ Return clean AI result to frontend
     res.status(200).json({
-      ats_score: parsed.ats_score,
+      ats_score: calculateATSScore(parsed.skills_found, parsed.missing_skills),,
       skills_found: parsed.skills_found,
       missing_skills: parsed.missing_skills,
       improvement_suggestions: parsed.improvement_suggestions,
     });
 
   } catch (err) {
-    console.error("ANALYSIS ERROR:", err.message);
+    console.error("ANALYSIS ERROR 👉", err.message);
     res.status(500).json({
       error: "Analysis failed",
       message: err.message,
