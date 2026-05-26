@@ -6,10 +6,10 @@ import ResumeAnalysis from "../models/ResumeAnalysis.js";
 import { cerebrasClient } from "../config/cerebras.js";
 
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
 const router = express.Router();
-const upload = multer();
+const upload = multer({storage: multer.memoryStorage() });
 
 /**
  * Safely parse JSON returned by LLM
@@ -99,7 +99,7 @@ ${resumeText}
     console.error("ANALYSIS ERROR 👉", err.message);
     res.status(500).json({
       error: "Analysis failed",
-      message: "Internal server error",
+      message: err.message,
     });
   }
 });
