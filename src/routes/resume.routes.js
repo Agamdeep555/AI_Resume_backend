@@ -61,7 +61,7 @@ ${resumeText}
 `;
 
     const response = await cerebrasClient.post("/chat/completions", {
-      model: "llama-3.3-70b",
+      model: "llama-3.1-8b",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.2,
       max_tokens: 1024,
