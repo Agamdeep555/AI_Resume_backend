@@ -152,27 +152,24 @@ router.post("/analyze", upload.single("resume"), async (req, res) => {
     }
 
     // ── 2. Call AI ──────────────────────────────────────────────────────────
-    const prompt = `You are a strict ATS resume scoring system. Output ONLY a single valid JSON object. No text before or after. No markdown. No code blocks. No explanations.
+   const prompt = `You are a strict ATS resume scoring system. Output ONLY a single valid JSON object. No text before or after. No markdown. No code blocks. No explanations.
 
 REQUIRED OUTPUT FORMAT (copy exactly):
 {"skills_found":[],"missing_skills":[],"improvement_suggestions":[],"raw_ats_score":0,"role_relevance_score":0,"experience_level_fit":{"detected_level":"","required_level":"","fit_score":0,"reason":""},"competitor_benchmark":{"percentile":0,"summary":""}}
 
 Field rules:
-- raw_ats_score: integer 0-100. Strict role-match based on skills, keywords, and experience. Examples:
-    * Python dev → Blockchain Developer: 10-20
-    * JS dev → Go Developer: 15-25
-    * Go dev → Go Developer: 75-90
-- role_relevance_score: integer 0-100. Fundamental role relevance ONLY. Zero core role skills = 0-15.
-- skills_found: skills in the resume DIRECTLY relevant to "${targetRole}" only.
-- missing_skills: critical skills for "${targetRole}" absent from the resume.
-- improvement_suggestions: 3-5 specific, actionable suggestions for "${targetRole}".
+- raw_ats_score: integer 0-100. Score strictly based on how well the resume's actual skills, keywords, and experience match "${targetRole}". Do not give credit for unrelated skills.
+- role_relevance_score: integer 0-100. Score ONLY whether the resume contains skills and experience that are core and fundamental to "${targetRole}". If the resume lacks the primary technical skills this role requires, score must be very low (0-20).
+- skills_found: skills in the resume DIRECTLY relevant to "${targetRole}" only. Do not include generic or transferable skills unless they are specifically required for this role.
+- missing_skills: critical skills that "${targetRole}" requires which are absent from the resume.
+- improvement_suggestions: 3-5 specific, actionable suggestions to better tailor this resume for "${targetRole}".
 - experience_level_fit:
-    * detected_level: candidate's apparent level ("Junior", "Mid", "Senior", "Lead/Principal")
-    * required_level: typical level needed for "${targetRole}" based on resume seniority signals
-    * fit_score: integer 0-100 (100 = perfect level match, 50 = one level off, 0 = extreme mismatch)
+    * detected_level: candidate's apparent seniority ("Junior", "Mid", "Senior", "Lead/Principal")
+    * required_level: seniority this resume's experience aligns with for "${targetRole}"
+    * fit_score: integer 0-100 (100 = perfect level match, lower = mismatch)
     * reason: one sentence explaining the level assessment
 - competitor_benchmark:
-    * percentile: integer 0-100 — where this resume ranks vs. typical applicants for "${targetRole}"
+    * percentile: integer 0-100 — where this resume ranks vs typical applicants for "${targetRole}"
     * summary: one sentence describing how competitive this resume is for the role
 - All array values must be strings only.
 - No trailing commas. No extra fields.
