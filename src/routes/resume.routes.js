@@ -19,6 +19,11 @@ function safeParseJSON(text) {
     throw new Error("AI returned invalid JSON");
   }
 }
+function calculateATSScore(skillsFound, missingSkills) {
+  const total = skillsFound.length + missingSkills.length;
+  if (total === 0) return 0;
+  return Math.round((skillsFound.length / total) * 100);
+}
 
 router.post("/analyze", upload.single("resume"), async (req, res) => {
   try {
@@ -100,7 +105,7 @@ JSON:`;
     }
 
     res.status(200).json({
-      ats_score: parsed.ats_score,
+      ats_score: calculateATSScore(parsed.skills_found, parsed.missing_skills),
       skills_found: parsed.skills_found,
       missing_skills: parsed.missing_skills,
       improvement_suggestions: parsed.improvement_suggestions,
